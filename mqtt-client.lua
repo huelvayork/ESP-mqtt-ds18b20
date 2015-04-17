@@ -1,5 +1,5 @@
 dofile("ds18b20.lc")
-mqtt_clientid="ESP"..node.chipid()
+mqtt_deviceid = mqtt_deviceid or "ESP"..node.chipid()
 mqtt_user="ESP01"
 mqtt_password=""
 
@@ -12,11 +12,11 @@ gpio.trig(3,"both",function()
 connected = false
 
 
-print ("#MQTT Client id: " ..mqtt_clientid)
+print ("#MQTT Client id: " ..mqtt_deviceid)
 print ("#MQTT Server: " ..mqtt_server)
 
 -- init mqtt client with keepalive timer 120sec
-m = mqtt:Client(mqtt_clientid, 120, mqtt_user, mqtt_password)
+m = mqtt:Client(mqtt_deviceid, 120, mqtt_user, mqtt_password)
 
 -- setup Last Will and Testament (optional)
 -- Broker will publish a message with:
@@ -45,10 +45,10 @@ function connect()
      connected = true
      -- subscribe topic with qos = 0
      m:subscribe("/status",0, onsubscribe)
-     m:subscribe("/fromarduino/"..mqtt_clientid,0, onsubscribe)
-     m:subscribe("/exec/"..mqtt_clientid,0, onsubscribe)
+     m:subscribe("/fromarduino/"..mqtt_deviceid,0, onsubscribe)
+     m:subscribe("/exec/"..mqtt_deviceid,0, onsubscribe)
      -- publish a message with data = hello, QoS = 0, retain = 0
-     m:publish("/debug/"..mqtt_clientid,"boot",0,0, onsend)         
+     m:publish("/debug/"..mqtt_deviceid,"boot",0,0, onsend)         
    end)
 end
 
@@ -72,12 +72,12 @@ m:on("message", function(conn, topic, data)
     log(data)
   end
   if (topic == '/status') then
-     m:publish('/status/'..mqtt_clientid..'/mem', node.heap(),0,0,onsend)
+     m:publish('/status/'..mqtt_deviceid..'/mem', node.heap(),0,0,onsend)
   end
-  if (topic == "/toarduino/"..mqtt_clientid) then
+  if (topic == "/toarduino/"..mqtt_deviceid) then
      uart.write (0,data .."\n")
   end
-  if (topic == '/exec/'..mqtt_clientid) then
+  if (topic == '/exec/'..mqtt_deviceid) then
      node.input(data)
   end
 end)
@@ -87,8 +87,9 @@ function publishTemp()
           sensors=getTemp()
           for i = 1, #sensors do
             log("sending "..sensors[i].address)
-            m:publish("/sensors/"..mqtt_clientid.."/temp/"..sensors[i].address, sensors[i].value, 0, 0, onsent)
+            m:publish("/sensors/"..mqtt_deviceid.."/temp/"..sensors[i].address, sensors[i].value, 0, 0, onsent)
           end
+          m:publish("/sensors/"..mqtt_deviceid.."/temp/end", 0, 0, 0, onsent)
           sensors=nil
      end
 end
@@ -103,6 +104,6 @@ tmr.alarm(1,60000,1, publishTemp)
 uart.on("data", "\n", function(data)
      node.input(data)
      log(data)
-     m:publish(mqtt_fromarduinotopic,data,0,0,onsent)
+     m:publish("/fromarduino/"..mqtt_deviceid,data,0,0,onsent)
      end, 0)
        
