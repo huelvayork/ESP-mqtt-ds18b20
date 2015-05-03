@@ -89,7 +89,9 @@ function publishTemp()
             log("sending "..sensors[i].address)
             m:publish("/sensors/"..mqtt_deviceid.."/temp/"..sensors[i].address, sensors[i].value, 0, 0, onsent)
           end
-          m:publish("/sensors/"..mqtt_deviceid.."/temp/end", 0, 0, 0, onsent)
+          if ( #sensors > 0 ) then
+               m:publish("/sensors/"..mqtt_deviceid.."/temp/end", 0, 0, 0, onsent)
+          end
           sensors=nil
      end
 end
