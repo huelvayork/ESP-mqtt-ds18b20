@@ -45,7 +45,7 @@ function connect()
      connected = true
      -- subscribe topic with qos = 0
      m:subscribe("/status",0, onsubscribe)
-     m:subscribe("/fromarduino/"..mqtt_deviceid,0, onsubscribe)
+     m:subscribe("/toarduino/"..mqtt_deviceid,0, onsubscribe)
      m:subscribe("/exec/"..mqtt_deviceid,0, onsubscribe)
      -- publish a message with data = hello, QoS = 0, retain = 0
      m:publish("/debug/"..mqtt_deviceid,"boot",0,0, onsend)         
