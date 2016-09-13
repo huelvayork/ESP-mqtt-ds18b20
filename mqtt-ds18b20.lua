@@ -48,7 +48,7 @@ function connect()
      m:subscribe("/toarduino/"..mqtt_deviceid,0, onsubscribe)
      m:subscribe("/exec/"..mqtt_deviceid,0, onsubscribe)
      -- publish a message with data = hello, QoS = 0, retain = 0
-     m:publish("/debug/"..mqtt_deviceid,"boot "..wifi.sta.getip(),0,0, onsend)         
+     m:publish("/debug/"..mqtt_deviceid,"boot "..wifi.sta.getip(),0,1, onsend)         
    end)
 end
 
@@ -72,28 +72,41 @@ m:on("message", function(conn, topic, data)
     log(data)
   end
   if (topic == '/status') then
-     m:publish('/status/'..mqtt_deviceid..'/mem', node.heap(),0,0,onsend)
+     publishStatus()
   end
   if (topic == "/toarduino/"..mqtt_deviceid) then
      uart.write (0,data .."\n")
   end
   if (topic == '/exec/'..mqtt_deviceid) then
+     node.output(debug2mqtt, 1)
      node.input(data)
+     node.output(nil)
   end
 end)
+
+function debug2mqtt(str)
+    m:publish("/debug/"..mqtt_deviceid,str,0,0,nil)         
+end
 
 function publishTemp()
      if (connected) then
           sensors=getTemp()
           for i = 1, #sensors do
             log("sending "..sensors[i].address)
-            m:publish("/sensors/"..mqtt_deviceid.."/temp/"..sensors[i].address, sensors[i].value, 0, 0, onsent)
+            m:publish("/sensors/"..mqtt_deviceid.."/temp/"..sensors[i].address, sensors[i].value, 0, 1, onsent)
           end
           if ( #sensors > 0 ) then
-               m:publish("/sensors/"..mqtt_deviceid.."/temp/end", 0, 0, 0, onsent)
+               m:publish("/sensors/"..mqtt_deviceid.."/temp/end", 0, 0, 1, onsent)
           end
           sensors=nil
+          publishStatus()
      end
+end
+
+function publishStatus()
+    m:publish('/status/'..mqtt_deviceid..'/mem', node.heap(),0,1,onsend)
+    m:publish('/status/'..mqtt_deviceid..'/battery', adc.readvdd33(),0,1,onsend)
+    m:publish("/status/"..mqtt_deviceid..'/ip', wifi.sta.getip(),0,1, onsend)         
 end
 
 tmr.alarm(0,1000,1,function()
