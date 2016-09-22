@@ -3,6 +3,11 @@ mqtt_deviceid = mqtt_deviceid or "ESP"..node.chipid()
 mqtt_user="ESP01"
 mqtt_password=""
 
+sleep_enabled=true -- set to false for no-sleep
+delay_seconds=60
+
+message_queue = {}
+
 -- GPIO0 resets the module
 gpio.mode(3, gpio.INT)
 gpio.trig(3,"both",function()
@@ -49,14 +54,14 @@ function connect()
      m:subscribe("/exec/"..mqtt_deviceid,0, onsubscribe)
      -- publish a message with data = hello, QoS = 0, retain = 0
      m:publish("/debug/"..mqtt_deviceid,"boot "..wifi.sta.getip(),0,1, onsend)         
+     publishStatus()
+     publishTemp()
+     run_message_queue()
    end)
 end
 
 
-m:on("connect", function(con) 
-     print ("connected") 
-     end)
-     
+
 m:on("offline", function(con) 
      log ("offline") 
      connected = false
@@ -88,32 +93,49 @@ function debug2mqtt(str)
     m:publish("/debug/"..mqtt_deviceid,str,0,0,nil)         
 end
 
+function enqueue_msg(topic, payload, qos, retain)
+    message_queue[#message_queue+1] = {topic=topic, payload=payload, qos=qos, retain=retain}
+end
+
 function publishTemp()
      if (connected) then
           sensors=getTemp()
           for i = 1, #sensors do
             log("sending "..sensors[i].address)
-            m:publish("/sensors/"..mqtt_deviceid.."/temp/"..sensors[i].address, sensors[i].value, 0, 1, onsent)
+            enqueue_msg("/sensors/"..mqtt_deviceid.."/temp/"..sensors[i].address, sensors[i].value, 0, 1)
           end
           if ( #sensors > 0 ) then
-               m:publish("/sensors/"..mqtt_deviceid.."/temp/end", 0, 0, 1, onsent)
+               enqueue_msg("/sensors/"..mqtt_deviceid.."/temp/end", 0, 0, 1)
           end
           sensors=nil
-          publishStatus()
      end
 end
 
 function publishStatus()
-    m:publish('/status/'..mqtt_deviceid..'/mem', node.heap(),0,1,onsend)
-    m:publish('/status/'..mqtt_deviceid..'/battery', adc.readvdd33(),0,1,onsend)
-    m:publish("/status/"..mqtt_deviceid..'/ip', wifi.sta.getip(),0,1, onsend)         
+    enqueue_msg('/status/'..mqtt_deviceid..'/mem', node.heap(),0,1)
+    enqueue_msg('/status/'..mqtt_deviceid..'/battery', adc.readvdd33(),0,1)
+    enqueue_msg('/status/'..mqtt_deviceid..'/ip', wifi.sta.getip(),0,1)         
+end
+
+function run_message_queue() 
+    if (#message_queue > 0) then
+        message = table.remove(message_queue,1)
+        m:publish(message.topic, message.payload, message.qos, message.retain, run_message_queue)
+    elseif sleep_enabled then        
+       log("going to sleep...")
+       node.dsleep(delay_seconds * 1000000)
+    end
 end
 
 tmr.alarm(0,1000,1,function()
           if ( not connected ) then connect() end
      end)
 
-tmr.alarm(1,60000,1, publishTemp)
+tmr.alarm(1, delay_seconds * 1000,1, function()
+        publishStatus()
+        publishTemp()
+        run_message_queue()
+    end)
 
 -- send via MQTT strings received from arduino
 uart.setup(0,115200,8,0,1,0)
