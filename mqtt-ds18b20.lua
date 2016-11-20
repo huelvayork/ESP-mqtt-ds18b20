@@ -3,8 +3,8 @@ mqtt_deviceid = mqtt_deviceid or "ESP"..node.chipid()
 mqtt_user="ESP01"
 mqtt_password=""
 
-sleep_enabled=true -- set to false for no-sleep
-delay_seconds=60
+sleep_enabled = true -- set to false for no-sleep
+delay_seconds = sleep_seconds or 60
 
 message_queue = {}
 
@@ -49,9 +49,11 @@ function connect()
      tmr.stop(0)
      connected = true
      -- subscribe topic with qos = 0
-     m:subscribe("/status",0, onsubscribe)
-     m:subscribe("/toarduino/"..mqtt_deviceid,0, onsubscribe)
-     m:subscribe("/exec/"..mqtt_deviceid,0, onsubscribe)
+     if (not sleep_enabled) then
+         m:subscribe("/status",0, onsubscribe)
+         m:subscribe("/toarduino/"..mqtt_deviceid,0, onsubscribe)
+         m:subscribe("/exec/"..mqtt_deviceid,0, onsubscribe)
+     end
      -- publish a message with data = hello, QoS = 0, retain = 0
      m:publish("/debug/"..mqtt_deviceid,"boot "..wifi.sta.getip(),0,1, onsend)         
      publishStatus()
