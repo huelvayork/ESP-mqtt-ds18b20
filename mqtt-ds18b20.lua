@@ -78,6 +78,7 @@ m:on("message", function(conn, topic, data)
   end
   if (topic == '/status') then
      publishStatus()
+     run_message_queue()
   end
   if (topic == "/toarduino/"..mqtt_deviceid) then
      uart.write (0,data .."\n")
