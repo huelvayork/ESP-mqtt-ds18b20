@@ -59,6 +59,10 @@ function connect()
      publishStatus()
      publishTemp()
      run_message_queue()
+     if sleep_enabled then        
+       log("going to sleep...")
+       node.dsleep(delay_seconds * 1000000)
+     end
    end)
 end
 
@@ -124,9 +128,6 @@ function run_message_queue()
     if (#message_queue > 0) then
         message = table.remove(message_queue,1)
         m:publish(message.topic, message.payload, message.qos, message.retain, run_message_queue)
-    elseif sleep_enabled then        
-       log("going to sleep...")
-       node.dsleep(delay_seconds * 1000000)
     end
 end
 
